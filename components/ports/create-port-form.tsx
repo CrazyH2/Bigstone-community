@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -14,11 +12,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Home, ArrowLeft } from "lucide-react"
 import PortGrid from "./port-grid"
 import { supabase } from "@/lib/supabase"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface GridCell {
   x: number
   y: number
-  type: "input" | "output" | null
+  type: "input" | "output" | "passthrough" | null
+  group?: number // For grouping multiple blocks
 }
 
 export default function CreatePortForm() {
@@ -27,19 +27,27 @@ export default function CreatePortForm() {
     portCount: 1,
     role: "SD",
     description: "",
+    isPassthrough: false,
+    inputCount: 1,
+    outputCount: 1,
+    usesMoreBlocks: false,
+    blockSize: 1,
   })
+
   const [gridData, setGridData] = useState<GridCell[]>([])
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const analyzeGridDirection = (gridData: GridCell[]) => {
-    const hasInput = gridData.some((cell) => cell.type === "input")
-    const hasOutput = gridData.some((cell) => cell.type === "output")
+    const inputs = gridData.filter(cell => cell.type === "input").length
+    const outputs = gridData.filter(cell => cell.type === "output").length
+    const passthroughs = gridData.filter(cell => cell.type === "passthrough").length
 
-    if (hasInput && hasOutput) return "B" // Bidirectional
-    if (hasInput) return "I" // Input only
-    if (hasOutput) return "O" // Output only
+    if (passthroughs > 0) return "P" // Passthrough
+    if (inputs > 0 && outputs > 0) return `${inputs}I${outputs}O` // Custom input/output counts
+    if (inputs > 0) return `${inputs}I` // Input only
+    if (outputs > 0) return `${outputs}O` // Output only
     return "" // No ports placed
   }
 
@@ -47,7 +55,8 @@ export default function CreatePortForm() {
     const direction = analyzeGridDirection(gridData)
     if (!direction || !formData.type) return ""
 
-    let name = `${direction}${formData.type}`
+    let name = formData.isPassthrough ? "P" : direction
+    name += formData.type
 
     if (formData.portCount > 1) {
       name += `-${formData.portCount}`
@@ -55,6 +64,10 @@ export default function CreatePortForm() {
 
     if (formData.role !== "SD") {
       name += `-${formData.role}`
+    }
+
+    if (formData.usesMoreBlocks && formData.blockSize > 1) {
+      name += `-${formData.blockSize}B`
     }
 
     return name
@@ -71,33 +84,23 @@ export default function CreatePortForm() {
       return
     }
 
-    const direction = analyzeGridDirection(gridData)
-    if (!direction) {
-      setError("Unable to determine port direction from grid")
-      setLoading(false)
-      return
-    }
-
-    // Check if Supabase is configured
-    if (!supabase) {
-      setError("Database connection not configured. Please set up Supabase environment variables.")
-      setLoading(false)
-      return
-    }
-
     try {
       const portName = generatePortName()
 
       const { error: insertError } = await supabase.from("ports").insert([
         {
           name: portName,
-          direction: direction,
+          direction: analyzeGridDirection(gridData),
           type: formData.type,
           port_count: formData.portCount,
           role: formData.role,
           description: formData.description,
+          is_passthrough: formData.isPassthrough,
+          input_count: formData.inputCount,
+          output_count: formData.outputCount,
+          block_size: formData.usesMoreBlocks ? formData.blockSize : 1,
           grid_data: gridData,
-          created_by: null, // Will be set when proper auth is implemented
+          created_by: null,
         },
       ])
 
@@ -109,6 +112,11 @@ export default function CreatePortForm() {
         portCount: 1,
         role: "SD",
         description: "",
+        isPassthrough: false,
+        inputCount: 1,
+        outputCount: 1,
+        usesMoreBlocks: false,
+        blockSize: 1,
       })
       setGridData([])
     } catch (err: any) {
@@ -120,16 +128,11 @@ export default function CreatePortForm() {
 
   const currentDirection = analyzeGridDirection(gridData)
   const getDirectionLabel = (dir: string) => {
-    switch (dir) {
-      case "I":
-        return "Input"
-      case "O":
-        return "Output"
-      case "B":
-        return "Bidirectional"
-      default:
-        return "No ports placed"
-    }
+    if (dir === "P") return "Passthrough"
+    if (dir.includes("I") && dir.includes("O")) return `Custom (${dir})`
+    if (dir.includes("I")) return `Input (${dir.replace("I", "")}×)`
+    if (dir.includes("O")) return `Output (${dir.replace("O", "")}×)`
+    return "No ports placed"
   }
 
   if (success) {
@@ -156,7 +159,6 @@ export default function CreatePortForm() {
 
   return (
     <div className="space-y-6">
-      {/* Back to Home Button */}
       <div className="flex justify-start">
         <Button asChild variant="outline" className="flex items-center gap-2">
           <Link href="/dashboard">
@@ -170,8 +172,7 @@ export default function CreatePortForm() {
         <CardHeader>
           <CardTitle className="text-xl">Create New Port</CardTitle>
           <CardDescription>
-            Define a new port following the BIGSTONE Port Standards. Place inputs and outputs on the grid to
-            automatically determine direction.
+            Define a new port following the BIGSTONE Port Standards. Place inputs and outputs on the grid.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -184,6 +185,53 @@ export default function CreatePortForm() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="passthrough"
+                    checked={formData.isPassthrough}
+                    onCheckedChange={(checked) => {
+                      setFormData(prev => ({ ...prev, isPassthrough: Boolean(checked) }))
+                      if (checked) {
+                        setGridData([]) // Clear grid when switching to passthrough
+                      }
+                    }}
+                  />
+                  <Label htmlFor="passthrough">Passthrough Port</Label>
+                </div>
+
+                {!formData.isPassthrough && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="inputCount">Input Count</Label>
+                        <Input
+                          id="inputCount"
+                          type="number"
+                          min="1"
+                          max="16"
+                          value={formData.inputCount}
+                          onChange={(e) =>
+                            setFormData(prev => ({ ...prev, inputCount: Number(e.target.value) || 1 }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="outputCount">Output Count</Label>
+                        <Input
+                          id="outputCount"
+                          type="number"
+                          min="1"
+                          max="16"
+                          value={formData.outputCount}
+                          onChange={(e) =>
+                            setFormData(prev => ({ ...prev, outputCount: Number(e.target.value) || 1 }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="type">Type</Label>
                   <Select
@@ -235,6 +283,33 @@ export default function CreatePortForm() {
                   </Select>
                 </div>
 
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="moreBlocks"
+                    checked={formData.usesMoreBlocks}
+                    onCheckedChange={(checked) =>
+                      setFormData(prev => ({ ...prev, usesMoreBlocks: Boolean(checked) }))
+                    }
+                  />
+                  <Label htmlFor="moreBlocks">Uses More Blocks</Label>
+                </div>
+
+                {formData.usesMoreBlocks && (
+                  <div className="space-y-2">
+                    <Label htmlFor="blockSize">Block Size</Label>
+                    <Input
+                      id="blockSize"
+                      type="number"
+                      min="1"
+                      max="16"
+                      value={formData.blockSize}
+                      onChange={(e) =>
+                        setFormData(prev => ({ ...prev, blockSize: Number(e.target.value) || 1 }))
+                      }
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
@@ -245,20 +320,9 @@ export default function CreatePortForm() {
                   />
                 </div>
 
-                {/* Direction Display */}
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <Label className="text-sm font-medium">Detected Direction:</Label>
-                  <div
-                    className={`text-lg font-bold ${
-                      currentDirection === "I"
-                        ? "text-green-600"
-                        : currentDirection === "O"
-                          ? "text-red-600"
-                          : currentDirection === "B"
-                            ? "text-blue-600"
-                            : "text-gray-500"
-                    }`}
-                  >
+                  <div className="text-lg font-bold text-blue-600">
                     {getDirectionLabel(currentDirection)}
                   </div>
                 </div>
@@ -266,7 +330,9 @@ export default function CreatePortForm() {
                 {currentDirection && formData.type && (
                   <div className="p-3 bg-blue-50 rounded-lg">
                     <Label className="text-sm font-medium">Generated Port Name:</Label>
-                    <div className="text-lg font-mono font-bold text-blue-600">{generatePortName()}</div>
+                    <div className="text-lg font-mono font-bold text-blue-600">
+                      {generatePortName()}
+                    </div>
                   </div>
                 )}
               </div>
@@ -275,10 +341,16 @@ export default function CreatePortForm() {
                 <div>
                   <Label className="text-base font-medium">Port Layout</Label>
                   <p className="text-sm text-gray-600 mb-4">
-                    Click on the grid to place input (↑) and output (↓) ports. The direction will be automatically
-                    determined from your placement. Coordinates start from (1,1) at the bottom-left.
+                    {formData.isPassthrough
+                      ? "Click on the grid to place passthrough ports (•)"
+                      : "Click on the grid to place inputs (↑) and outputs (↓)"}
                   </p>
-                  <PortGrid gridData={gridData} onGridChange={setGridData} />
+                  <PortGrid
+                    gridData={gridData}
+                    onGridChange={setGridData}
+                    isPassthrough={formData.isPassthrough}
+                    blockSize={formData.usesMoreBlocks ? formData.blockSize : 1}
+                  />
                 </div>
               </div>
             </div>
