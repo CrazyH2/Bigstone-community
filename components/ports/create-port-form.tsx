@@ -32,6 +32,7 @@ export default function CreatePortForm() {
     outputCount: 1,
     usesMoreBlocks: false,
     blockSize: 1,
+    showGridColors: true, // New state for showing colors on grid
   })
 
   const [gridData, setGridData] = useState<GridCell[]>([])
@@ -101,6 +102,7 @@ export default function CreatePortForm() {
           block_size: formData.usesMoreBlocks ? formData.blockSize : 1,
           grid_data: gridData,
           created_by: null,
+          show_grid_colors: formData.showGridColors, // Save the color preference
         },
       ])
 
@@ -117,6 +119,7 @@ export default function CreatePortForm() {
         outputCount: 1,
         usesMoreBlocks: false,
         blockSize: 1,
+        showGridColors: true, // Reset to default
       })
       setGridData([])
     } catch (err: any) {
@@ -245,6 +248,7 @@ export default function CreatePortForm() {
                       <SelectItem value="BIN">Binary (BIN)</SelectItem>
                       <SelectItem value="HEX">Hexadecimal (HEX)</SelectItem>
                       <SelectItem value="ITEM">Item</SelectItem>
+                      <SelectItem value="FLY">Fly (FLY)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -310,6 +314,18 @@ export default function CreatePortForm() {
                   </div>
                 )}
 
+                {/* New checkbox for toggling grid colors */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="showGridColors"
+                    checked={formData.showGridColors}
+                    onCheckedChange={(checked) =>
+                      setFormData(prev => ({ ...prev, showGridColors: Boolean(checked) }))
+                    }
+                  />
+                  <Label htmlFor="showGridColors">Show Colors on Grid</Label>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
@@ -350,6 +366,7 @@ export default function CreatePortForm() {
                     onGridChange={setGridData}
                     isPassthrough={formData.isPassthrough}
                     blockSize={formData.usesMoreBlocks ? formData.blockSize : 1}
+                    showColors={formData.showGridColors} // Pass the color toggle to PortGrid
                   />
                 </div>
               </div>
