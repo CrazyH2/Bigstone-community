@@ -73,7 +73,7 @@ export default function HomePage() {
               <CardTitle>Under Maintenance</CardTitle>
               <CardDescription>{maintenanceReason || "If you would like to know more please contact us!"}</CardDescription>
             </CardHeader>
-            <img src="/public/images/maintenance.jpg"></img>
+            <img src="images/maintenance.jpg"></img>
           </Card>
         </div>}
 
