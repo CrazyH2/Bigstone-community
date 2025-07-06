@@ -12,7 +12,7 @@ export default function HomePage() {
 
   // Maintenance settings - This isn't in the database incase of emergency where database needs to be disabled!
   const maintenance = true
-  const maintenanceReason = "Some vulnerabilities have been found with authentication.<br><br>To ensure no data leaks, all authentication has been disabled.<br>Sorry for the inconvenience!"
+  const maintenanceReason = ['Some vulnerabilities have been found with authentication.', <br />, <br />, 'To ensure no data leaks, all authentication has been disabled.', <br />, 'Sorry for the inconvenience!'];
   // ----------------------
 
 
@@ -55,7 +55,14 @@ export default function HomePage() {
               <CardTitle>Join the Community</CardTitle>
               <CardDescription>Sign up to access ports, standards, projects, and the example</CardDescription>
             </CardHeader>
-            <img src="/public/images/maintenance.jpg"></img>
+            <CardContent className="flex gap-3">
+              <Button asChild className="flex-1">
+                <Link href="/auth/signup">Sign Up</Link>
+              </Button>
+              <Button asChild variant="outline" className="flex-1">
+                <Link href="/auth/signin">Sign In</Link>
+              </Button>
+            </CardContent>
           </Card>
         </div>}
 
@@ -66,14 +73,7 @@ export default function HomePage() {
               <CardTitle>Under Maintenance</CardTitle>
               <CardDescription>{maintenanceReason || "If you would like to know more please contact us!"}</CardDescription>
             </CardHeader>
-            <CardContent className="flex gap-3">
-              <Button asChild className="flex-1">
-                <Link href="/auth/signup">Sign Up</Link>
-              </Button>
-              <Button asChild variant="outline" className="flex-1">
-                <Link href="/auth/signin">Sign In</Link>
-              </Button>
-            </CardContent>
+            <img src="/public/images/maintenance.jpg"></img>
           </Card>
         </div>}
 
