@@ -9,6 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Cpu, FileText, Users, Zap, FolderOpen, Grid3X3 } from "lucide-react"
 
 export default function HomePage() {
+
+  // Maintenance settings - This isn't in the database incase of emergency where database needs to be disabled!
+  const maintenance = true
+  const maintenanceReason = "Some vulnerabilities have been found with authentication.<br><br>To ensure no data leaks, all authentication has been disabled.<br>Sorry for the inconvenience!"
+  // ----------------------
+
+
   const { isAuthenticated } = useSession()
   const router = useRouter()
 
@@ -42,11 +49,22 @@ export default function HomePage() {
         </div>
 
         {/* Auth Section - Prominent */}
-        <div className="text-center mb-12">
+        {maintenance == false && <div className="text-center mb-12">
           <Card className="max-w-md mx-auto">
             <CardHeader>
               <CardTitle>Join the Community</CardTitle>
               <CardDescription>Sign up to access ports, standards, projects, and the example</CardDescription>
+            </CardHeader>
+            <img src="/public/images/maintenance.jpg"></img>
+          </Card>
+        </div>}
+
+        {/* Maintenance Section - Prominent */}
+        {maintenance == true && <div className="text-center mb-12">
+          <Card className="max-w-md mx-auto">
+            <CardHeader>
+              <CardTitle>Under Maintenance</CardTitle>
+              <CardDescription>{maintenanceReason || "If you would like to know more please contact us!"}</CardDescription>
             </CardHeader>
             <CardContent className="flex gap-3">
               <Button asChild className="flex-1">
@@ -57,7 +75,7 @@ export default function HomePage() {
               </Button>
             </CardContent>
           </Card>
-        </div>
+        </div>}
 
         {/* Features Preview - No Action Buttons */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mb-12">
