@@ -4,3 +4,8 @@ body {
   background: #18181b;
   color: #f3f4f6;
 }
+
+::selection {
+  background: #f85154;
+  color: #f3f4f6;
+}
