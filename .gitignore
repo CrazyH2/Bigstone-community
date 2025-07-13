@@ -2,9 +2,6 @@
 
 # Dependencies
 node_modules
-apps/api/node_modules
-apps/web/node_modules
-apps/docs/node_modules
 .pnp
 .pnp.js
 
